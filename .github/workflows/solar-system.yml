@@ -15,7 +15,6 @@ env:
 jobs:
     unit-testing:
         name: Unit Testing
-        id: unit-testing
         container:
           image: node:20
 
