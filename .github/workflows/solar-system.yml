@@ -23,8 +23,16 @@ jobs:
         - name: Setup NodeJS Version
           uses: actions/setup-node@v3
           with:
-            node-version: 20
-    
+            node-version: 
+        
+        - name: Cache NPM depndencies
+          uses: actions/cache@v3
+          with:
+            key: ${{runner.os}}-node-${{hashFiles('**/package-lock.json')}}
+            path: ~/.npm
+            restore-keys:
+              - ${{runner.os}}-node-
+
         - name: Install Dependencies
           run: npm install
     
