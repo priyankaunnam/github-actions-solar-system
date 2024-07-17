@@ -101,6 +101,8 @@ jobs:
         needs: docker
         environment:
           name: development
+        outputs:
+          ingress-url: ${{ steps.fetch_nginx_ip.outputs.INGRESS_IP }}
         steps:
         - name: Checkout Repository
           uses: actions/checkout@v4
@@ -120,7 +122,10 @@ jobs:
           run: kubectl version --short -o yaml
 
         - name: fetch nginx ingress controller ip address
-          run: echo "INGRESS_IP=$(kubectl -n ingress-nginx get services ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')">>$GITHUB_ENV
+          id: fetch_nginx_ip
+          run: |
+            echo "INGRESS_IP=$(kubectl -n ingress-nginx get services ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')">>$GITHUB_ENV
+            echo "$INGRESS_IP" >> $GITHUB_OUTPUT
 
         - name: Replace placeholders in kubernetes directory
           uses: cschleiden/replace-tokens@v1
@@ -133,3 +138,8 @@ jobs:
             IMAGE: 'ghcr.io/${{github.repository_owner}}/solar-system:${{github.sha}}'
         - name: Display yaml files
           run: cat kubernetes/development/*.yaml
+    integration-testing:
+      needs: dev-deploy 
+      uses: ./.github/workflows/reusable-workflow.yml
+      with:
+        ingress-url: '${{needs.dev-deploy.outputs.ingress-url}}'
