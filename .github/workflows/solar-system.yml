@@ -102,7 +102,7 @@ jobs:
         environment:
           name: development
         outputs:
-          ingress-url: ${{ steps.fetch_nginx_ip.outputs.INGRESS_IP }}
+          ingress-url: ${{ steps.fetch_nginx_ip.outputs.APP_INGRESS_HOST }}
         steps:
         - name: Checkout Repository
           uses: actions/checkout@v4
@@ -138,6 +138,24 @@ jobs:
             IMAGE: 'ghcr.io/${{github.repository_owner}}/solar-system:${{github.sha}}'
         - name: Display yaml files
           run: cat kubernetes/development/*.yaml
+        - name: Create MongoDB Secret
+          run: |
+            kubectl -n ${{ vars.NAMESPACE }} create secret generic mongo-db-creds \
+            --from-literal=MONGO_URI=${{ vars.mongodb-uri }} \
+            --from-literal=MONGO_USERNAME=${{ vars.MONGO_USERNAME }} \
+            --from-literal=MONGO_PASSWORD=${{ secrets.mongodb-password }} \
+            --save-config \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+        
+        - name: Deploy to Dev Env
+          run: |
+            kubectl apply -f ${{ inputs.k8s-manifest-dir }}
+
+        - name: Set App Ingress Host URL
+          id: set-ingress-host-address
+          run: |
+            echo "APP_INGRESS_HOST=$(kubectl -n ${{ vars.NAMESPACE }} get ingress -o jsonpath="{.items[0].spec.tls[0].hosts[0]}")" >> "$GITHUB_OUTPUT"
     integration-testing:
       needs: dev-deploy 
       uses: ./.github/workflows/reusable-workflow.yml
